@@ -1,4 +1,3 @@
-
 import streamlit as st
 from data_handler import fetch_latest_result, salvar_resultado_em_arquivo
 from modelo_ia import prever_proximos_numeros_com_ia
@@ -24,7 +23,6 @@ if "acerto_ia" not in st.session_state:
 result = fetch_latest_result()
 if result and result.get("timestamp") != st.session_state.last_seen_timestamp:
     st.session_state.history.insert(0, result)
-    st.session_state.history = st.session_state.history[:50]
     st.session_state.last_seen_timestamp = result.get("timestamp")
     salvar_resultado_em_arquivo(result)
 
@@ -57,7 +55,7 @@ with abas[0]:
     else:
         st.info("⏳ Aguardando os primeiros números...")
 
-    st.markdown(f"📊 Números coletados: **{len(st.session_state.history)}** / 50")
+    st.markdown(f"📊 Números coletados: **{len(st.session_state.history)}**")
 
     if st.session_state.ultima_previsao:
         st.markdown("---")
