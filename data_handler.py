@@ -1,26 +1,36 @@
-import csv
-import os
-from datetime import datetime
-import random
+
+import requests
+
+API_URL = "https://api.casinoscores.com/svc-evolution-game-events/api/xxxtremelightningroulette/latest"
+HEADERS = { "User-Agent": "Mozilla/5.0" }
 
 def fetch_latest_result():
-    # Simulador de sorteio (substitua por sua lógica de captura real)
-    now = datetime.now().isoformat()
-    return {
-        "timestamp": now,
-        "number": random.randint(0, 36),
-        "lucky_numbers": [random.randint(0, 36) for _ in range(3)],
-    }
+    try:
+        response = requests.get(API_URL, headers=HEADERS, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            game_data = data.get("data", {})
+            result = game_data.get("result", {})
+            outcome = result.get("outcome", {})
+            lucky_list = result.get("luckyNumbersList", [])
 
-def salvar_resultado_em_arquivo(result):
-    file_path = "resultados.csv"
-    existe = os.path.isfile(file_path)
-    with open(file_path, mode="a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["timestamp", "numero", "lucky"])
-        if not existe:
-            writer.writeheader()
-        writer.writerow({
-            "timestamp": result["timestamp"],
-            "numero": result["number"],
-            "lucky": "-".join(map(str, result["lucky_numbers"]))
-        })
+            number = outcome.get("number")
+            timestamp = game_data.get("startedAt")
+            lucky_numbers = [item["number"] for item in lucky_list]
+
+            return {
+                "number": number,
+                "timestamp": timestamp,
+                "lucky_numbers": lucky_numbers
+            }
+    except:
+        return None
+
+def salvar_resultado_em_arquivo(resultados, caminho='historico_resultados.txt'):
+    try:
+        with open(caminho, 'a') as f:
+            for r in resultados:
+                linha = f"{r['number']} | {','.join(map(str, r['lucky_numbers']))} | {r['timestamp']}\n"
+                f.write(linha)
+    except Exception as e:
+        print(f"[Erro ao salvar]: {e}")
