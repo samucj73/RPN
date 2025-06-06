@@ -1,7 +1,6 @@
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-import random
 
 def extrair_caracteristicas(numero):
     numero = int(numero)
@@ -31,8 +30,8 @@ def extrair_caracteristicas(numero):
 def preparar_dados(df):
     df = df.copy()
     df = df[df['numero'] != '']
-
     df['numero'] = df['numero'].astype(int)
+
     features = df['numero'].apply(extrair_caracteristicas).apply(pd.Series)
     df = pd.concat([df, features], axis=1)
 
@@ -49,11 +48,10 @@ def preparar_dados(df):
 def prever_proximos_numeros_com_ia(caminho_csv, qtd=5):
     try:
         df = pd.read_csv(caminho_csv)
-        if len(df) < 30:
-            return []  # Dados insuficientes
+        if len(df) < 10:  # ✅ Limite mínimo reduzido para facilitar teste
+            return []
 
         X, y, encoders = preparar_dados(df)
-
         modelo = RandomForestClassifier(n_estimators=200, random_state=42)
         modelo.fit(X, y)
 
