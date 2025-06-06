@@ -9,49 +9,50 @@ st.markdown("<h1 style='text-align:center;'>🎰 Monitor de Sorteios - XXXtreme 
 
 st_autorefresh(interval=10_000, key="refresh")
 
-# Estados da sessão
 if "history" not in st.session_state:
     st.session_state.history = []
 if "last_seen_timestamp" not in st.session_state:
     st.session_state.last_seen_timestamp = None
 if "ultima_previsao" not in st.session_state:
     st.session_state.ultima_previsao = None
-if "acertos_ia" not in st.session_state:
-    st.session_state.acertos_ia = []
+if "prever_ativo" not in st.session_state:
+    st.session_state.prever_ativo = False
+if "acertos" not in st.session_state:
+    st.session_state.acertos = []
 
-# Captura novo sorteio
+col1, col2 = st.columns([1, 2])
+with col1:
+    if st.button("🚀 Iniciar Previsão IA" if not st.session_state.prever_ativo else "🛑 Parar Previsão"):
+        st.session_state.prever_ativo = not st.session_state.prever_ativo
+
 result = fetch_latest_result()
 if result and result.get("timestamp") != st.session_state.last_seen_timestamp:
     st.session_state.history.insert(0, result)
     st.session_state.last_seen_timestamp = result.get("timestamp")
     salvar_resultado_em_arquivo(result)
 
-    # Verifica acerto da previsão anterior
-    ultima_previsao = st.session_state.ultima_previsao
-    numero_sorteado = result.get("number") or result.get("numero")
-    if ultima_previsao and numero_sorteado == ultima_previsao["numero"]:
-        st.session_state.acertos_ia.insert(0, {
-            "numero": numero_sorteado,
-            "timestamp": result.get("timestamp", "N/A")
-        })
+    if st.session_state.prever_ativo:
+        previsoes_rapidas = prever_proximos_numeros_com_ia("resultados.csv", qtd=1)
+        if previsoes_rapidas:
+            st.session_state.ultima_previsao = previsoes_rapidas[0]
+            if previsoes_rapidas[0]["numero"] == result.get("number"):
+                st.session_state.acertos.append({
+                    "numero": previsoes_rapidas[0]["numero"],
+                    "timestamp": result.get("timestamp")
+                })
 
-    # Gera nova previsão
-    previsoes_rapidas = prever_proximos_numeros_com_ia("resultados.csv", qtd=1)
-    if previsoes_rapidas:
-        st.session_state.ultima_previsao = previsoes_rapidas[0]
-
-# --- TABS ---
 abas = st.tabs(["📡 Monitoramento", "📈 Análise", "🔮 Previsões Futuras"])
 
-# 🟠 Aba 1 – Monitoramento
 with abas[0]:
     st.subheader("🎲 Números Sorteados ao Vivo")
-    for item in st.session_state.history[:10]:
-        numero = item.get("number") or item.get("numero", "N/A")
-        lucky = item.get("lucky_numbers") or item.get("lucky", "N/A")
-        timestamp = item.get("timestamp", "N/A")
-        st.write(f"🎯 Número: {numero} | ⚡ Lucky: {lucky} | 🕒 {timestamp}")
-
+    if st.session_state.history:
+        for item in st.session_state.history[:10]:
+            numero = item.get("number") or item.get("numero", "N/A")
+            lucky = item.get("lucky_numbers") or item.get("lucky", "N/A")
+            timestamp = item.get("timestamp", "N/A")
+            st.write(f"🎯 Número: {numero} | ⚡ Lucky: {lucky} | 🕒 {timestamp}")
+    else:
+        st.info("⏳ Aguardando os primeiros números...")
     st.markdown(f"📊 Números coletados: **{len(st.session_state.history)}**")
 
     if st.session_state.ultima_previsao:
@@ -62,26 +63,25 @@ with abas[0]:
             f"🎯 **Número:** `{prev['numero']}` | 🎨 Cor: `{prev['cor']}` | 📊 Coluna: `{prev['coluna']}` | 🧱 Linha: `{prev['linha']}`"
         )
 
-    if st.session_state.acertos_ia:
-        st.markdown("---")
-        st.subheader("✅ Histórico de Acertos da IA")
-        for acerto in st.session_state.acertos_ia[:10]:
-            st.success(f"🎯 Acerto: Número `{acerto['numero']}` às 🕒 `{acerto['timestamp']}`")
+    if st.session_state.acertos:
+        st.markdown("## ✅ Acertos da IA:")
+        for acerto in st.session_state.acertos[-10:]:
+            st.success(f"🎯 Acertou o número **{acerto['numero']}** em {acerto['timestamp']}")
 
-# 🟡 Aba 2 – Análise
 with abas[1]:
     st.subheader("📊 Estatísticas dos Últimos Sorteios")
-    if len(st.session_state.history) >= 10 and st.button("🔍 Analisar"):
-        numeros = [
-            item.get("number") or item.get("numero")
-            for item in st.session_state.history if (item.get("number") or item.get("numero")) is not None
-        ]
-        freq = {n: numeros.count(n) for n in set(numeros)}
-        top_freq = sorted(freq.items(), key=lambda x: x[1], reverse=True)[:10]
-        for n, f in top_freq:
-            st.write(f"➡️ Número {n} saiu {f} vezes")
+    if len(st.session_state.history) >= 10:
+        if st.button("🔍 Analisar"):
+            numeros = [
+                item.get("number") or item.get("numero")
+                for item in st.session_state.history if (item.get("number") or item.get("numero")) is not None
+            ]
+            freq = {n: numeros.count(n) for n in set(numeros)}
+            top_freq = sorted(freq.items(), key=lambda x: x[1], reverse=True)[:10]
+            st.write("🎯 **Top 10 Números Mais Frequentes**:")
+            for n, f in top_freq:
+                st.write(f"➡️ Número {n} saiu {f} vezes")
 
-# 🟢 Aba 3 – Previsões Futuras (IA)
 with abas[2]:
     st.subheader("🔮 Previsão dos Próximos Números (IA)")
     previsoes = prever_proximos_numeros_com_ia("resultados.csv", qtd=10)
