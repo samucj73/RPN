@@ -154,6 +154,25 @@ class RoletaIA:
             janela_tamanho = min(self.janela_max, i)
             janela = numeros[i - janela_tamanho:i]
             saida = numeros[i]
+
+            # Ignorar se houver valores inválidos
+            if any(n < 0 or n > 36 for n in janela + [saida]):
+                continue
+
+            freq = Counter(numeros[:i])
+            freq_total = sum(freq.values())
+            entrada = construir_entrada(janela, freq, freq_total)
+            entradas.append(entrada)
+            saidas.append(saida)
+
+        if entradas and saidas:
+            self.modelo.treinar(entradas, saidas)
+        return
+        saidas = []
+        for i in range(self.janela_max, len(numeros) - 1):
+            janela_tamanho = min(self.janela_max, i)
+            janela = numeros[i - janela_tamanho:i]
+            saida = numeros[i]
             freq = Counter(numeros[:i])
             freq_total = sum(freq.values())
             entrada = construir_entrada(janela, freq, freq_total)
@@ -185,7 +204,7 @@ input_numbers = st.text_area("Digite os números separados por espaço (ex: 12 2
 
 if st.button("Adicionar Sorteios Manuais"):
     try:
-        nums = [int(n.strip()) for n in input_numbers.split() if n.strip().isdigit()]
+        nums = [int(n.strip()) for n in input_numbers.split() if n.strip().isdigit() and 0 <= int(n.strip()) <= 36]
         if len(nums) > 100:
             st.warning("Você só pode inserir até 100 números.")
         else:
