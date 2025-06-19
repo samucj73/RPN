@@ -3,9 +3,10 @@ import json
 import os
 import logging
 import requests
+import time
 import re
 from collections import Counter
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import SGDClassifier
 import numpy as np
 from streamlit_autorefresh import st_autorefresh
 
@@ -14,7 +15,7 @@ HISTORICO_PATH = "historico_resultados.json"
 API_URL = "https://api.casinoscores.com/svc-evolution-game-events/api/xxxtremelightningroulette/latest"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-# --- Funções API ---
+# --- API ---
 def fetch_latest_result():
     try:
         response = requests.get(API_URL, headers=HEADERS, timeout=10)
@@ -24,14 +25,20 @@ def fetch_latest_result():
         result = game_data.get("result", {})
         outcome = result.get("outcome", {})
         lucky_list = result.get("luckyNumbersList", [])
+
+        number = outcome.get("number")
+        color = outcome.get("color", "-")
+        timestamp = game_data.get("startedAt")
+        lucky_numbers = [item["number"] for item in lucky_list]
+
         return {
-            "number": outcome.get("number"),
-            "color": outcome.get("color", "-"),
-            "timestamp": game_data.get("startedAt"),
-            "lucky_numbers": [item["number"] for item in lucky_list]
+            "number": number,
+            "color": color,
+            "timestamp": timestamp,
+            "lucky_numbers": lucky_numbers
         }
     except Exception as e:
-        logging.error(f"Erro na API: {e}")
+        logging.error(f"Erro ao buscar resultado da API: {e}")
         return None
 
 def salvar_resultado_em_arquivo(history, caminho=HISTORICO_PATH):
@@ -49,7 +56,7 @@ def salvar_resultado_em_arquivo(history, caminho=HISTORICO_PATH):
     with open(caminho, "w") as f:
         json.dump(dados_existentes, f, indent=2)
 
-# --- Funções auxiliares ---
+# --- Funções Auxiliares ---
 def get_color(n):
     if n == 0: return -1
     return 1 if n in {1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36} else 0
@@ -60,9 +67,7 @@ def get_coluna(n):
 def get_linha(n):
     return ((n - 1) // 3) + 1 if n != 0 else 0
 
-def extrair_features(numero, freq_norm, janela, idx, total_pares, total_impares):
-    media = np.mean(janela)
-    ult_num = janela[-1] if janela else 0
+def extrair_features(numero, freq_norm, janela, idx_num, total_pares, total_impares):
     return [
         numero % 2,
         numero % 3,
@@ -71,10 +76,9 @@ def extrair_features(numero, freq_norm, janela, idx, total_pares, total_impares)
         get_coluna(numero),
         get_linha(numero),
         freq_norm.get(numero, 0),
-        numero - ult_num,
-        media,
+        (numero - janela[idx_num-1]) if idx_num > 0 else 0,
         total_pares / len(janela),
-        total_impares / len(janela)
+        total_impares / len(janela),
     ]
 
 def construir_entrada(janela, freq, freq_total):
@@ -86,25 +90,38 @@ def construir_entrada(janela, freq, freq_total):
         features.extend(extrair_features(n, freq_norm, janela, i, total_pares, total_impares))
     return features
 
-# --- Modelo de IA ---
+# --- IA ---
 class ModeloIA:
     def __init__(self):
-        self.modelo = RandomForestClassifier(n_estimators=100, random_state=42)
-        self.treinado = False
+        self.modelo = SGDClassifier(
+            loss="log_loss",
+            max_iter=1000,
+            tol=1e-3,
+            eta0=0.01,
+            learning_rate='optimal',
+            random_state=42
+        )
+        self.classes_ = np.arange(37)
+        self.iniciado = False
 
     def treinar(self, entradas, saidas):
-        self.modelo.fit(entradas, saidas)
-        self.treinado = True
+        X = np.array(entradas)
+        y = np.array(saidas)
+        if not self.iniciado:
+            self.modelo.partial_fit(X, y, classes=self.classes_)
+            self.iniciado = True
+        else:
+            self.modelo.partial_fit(X, y)
 
     def prever(self, entrada, top_k=8):
-        if not self.treinado:
+        if not self.iniciado:
             return []
         proba = self.modelo.predict_proba([entrada])[0]
-        return list(np.argsort(proba)[::-1][:top_k])
+        indices = np.argsort(proba)[::-1]
+        return indices[:top_k].tolist()
 
-# --- Classe principal ---
 class RoletaIA:
-    def __init__(self, janela_min=20, janela_max=36):
+    def __init__(self, janela_min=18, janela_max=36):
         self.modelo = ModeloIA()
         self.janela_min = janela_min
         self.janela_max = janela_max
@@ -119,7 +136,7 @@ class RoletaIA:
             entrada = construir_entrada(janela, freq, sum(freq.values()))
             entradas.append(entrada)
             saidas.append(saida)
-        if entradas:
+        if entradas and saidas:
             self.modelo.treinar(entradas, saidas)
 
     def prever_numeros(self, historico):
@@ -142,24 +159,29 @@ class RoletaIA:
 st.set_page_config(page_title="Roleta IA", layout="wide")
 st.title("🎯 Previsão Inteligente de Roleta")
 
+# Inicialização
 if "historico" not in st.session_state:
     st.session_state.historico = json.load(open(HISTORICO_PATH)) if os.path.exists(HISTORICO_PATH) else []
-
 if "acertos" not in st.session_state:
     st.session_state.acertos = []
-
 if "previsoes" not in st.session_state:
     st.session_state.previsoes = []
-
 if "roleta_ia" not in st.session_state:
     st.session_state.roleta_ia = RoletaIA()
+if "ultima_previsao_ts" not in st.session_state:
+    st.session_state.ultima_previsao_ts = 0
 
-st.subheader("✍️ Inserir Sorteios Manualmente")
-entrada = st.text_area("Digite os números (separados por espaço, texto livre permitido):", height=100)
+min_sorteios = st.slider("Quantidade mínima de sorteios para previsão", 5, 100, 18)
+
+# Entrada manual
+st.subheader("✍️ Inserir até 100 Sorteios Anteriores Manualmente")
+entrada = st.text_area("Cole os números (com ou sem texto, separado por espaço):", height=100)
 if st.button("Adicionar Sorteios"):
-    numeros = [int(n) for n in re.findall(r'\b\d{1,2}\b', entrada) if 0 <= int(n) <= 36]
-    if numeros:
-        for numero in numeros[:100]:
+    numeros_extraidos = [int(n) for n in re.findall(r'\b\d{1,2}\b', entrada) if 0 <= int(n) <= 36]
+    if len(numeros_extraidos) > 100:
+        st.warning("Insira no máximo 100 números.")
+    else:
+        for numero in numeros_extraidos:
             st.session_state.historico.append({
                 "number": numero,
                 "color": "-",
@@ -167,9 +189,9 @@ if st.button("Adicionar Sorteios"):
                 "lucky_numbers": []
             })
         salvar_resultado_em_arquivo(st.session_state.historico)
-        st.success(f"{len(numeros)} números adicionados ao histórico.")
+        st.success(f"{len(numeros_extraidos)} números adicionados com sucesso!")
 
-# Auto refresh
+# Captura automática
 st_autorefresh(interval=40000, key="auto_refresh")
 resultado = fetch_latest_result()
 ultimo_ts = st.session_state.historico[-1]["timestamp"] if st.session_state.historico else None
@@ -184,16 +206,30 @@ if resultado and resultado["timestamp"] != ultimo_ts:
     st.session_state.historico.append(novo)
     salvar_resultado_em_arquivo([novo])
     st.toast(f"🎲 Novo número: {novo['number']}")
+    st.session_state.ultima_previsao_ts = time.time()
+
+# Aguarda 30 segundos para prever
+if st.session_state.ultima_previsao_ts and (time.time() - st.session_state.ultima_previsao_ts >= 30):
     previsao = st.session_state.roleta_ia.prever_numeros(st.session_state.historico)
     st.session_state.previsoes = previsao["numeros"]
     st.session_state.coluna = previsao["coluna"]
     st.session_state.linha = previsao["linha"]
-    if novo["number"] in st.session_state.previsoes:
-        if novo["number"] not in st.session_state.acertos:
-            st.session_state.acertos.append(novo["number"])
-            st.toast(f"✅ Acerto! {novo['number']} estava na previsão.")
-else:
-    st.info("⏳ Aguardando novo sorteio...")
+
+    numero_ultimo = st.session_state.historico[-1]["number"]
+    coluna_real = get_coluna(numero_ultimo)
+    linha_real = get_linha(numero_ultimo)
+
+    if numero_ultimo in st.session_state.previsoes and numero_ultimo not in st.session_state.acertos:
+        st.session_state.acertos.append(numero_ultimo)
+        st.toast(f"✅ Número {numero_ultimo} acertado!")
+
+    if st.session_state.coluna == coluna_real:
+        st.toast(f"✅ Coluna {coluna_real} acertada!")
+
+    if st.session_state.linha == linha_real:
+        st.toast(f"✅ Linha {linha_real} acertada!")
+
+    st.session_state.ultima_previsao_ts = 0  # Reset
 
 # Exibição
 st.subheader("🔢 Últimos Sorteios")
@@ -204,7 +240,7 @@ if st.session_state.previsoes:
     st.success("🎯 " + " ".join(str(n) for n in st.session_state.previsoes))
     st.info(f"📐 Coluna provável: {st.session_state.coluna} | Linha provável: {st.session_state.linha}")
 else:
-    st.warning("Aguardando mais sorteios...")
+    st.warning("Aguardando sorteios suficientes.")
 
 st.subheader("🏅 Acertos")
 col1, col2 = st.columns([4, 1])
@@ -216,9 +252,9 @@ with col2:
         st.toast("Acertos resetados.")
 
 st.subheader("📊 Taxa de Acertos")
-total_prev = len(st.session_state.historico) - 20
+total_prev = len([h for h in st.session_state.historico if h["number"] not in (None, 0)]) - min_sorteios
 if total_prev > 0:
     taxa = len(st.session_state.acertos) / total_prev * 100
-    st.info(f"🎯 Taxa de acerto: {taxa:.2f}% ({len(st.session_state.acertos)}/{total_prev})")
+    st.info(f"🎯 Taxa de acerto: {taxa:.2f}%")
 else:
-    st.warning("Aguardando mais sorteios para calcular taxa.")
+    st.warning("Aguardando mais sorteios para calcular.")
