@@ -1,15 +1,17 @@
+
 import streamlit as st
 import json
 import os
 import logging
 import requests
-import time
 from collections import Counter
-from sklearn.ensemble import RandomForestClassifier
 import numpy as np
+import joblib
+from sklearn.ensemble import RandomForestClassifier
 from streamlit_autorefresh import st_autorefresh
 
 HISTORICO_PATH = "historico_resultados.json"
+MODELO_PATH = "modelo_roleta.joblib"
 API_URL = "https://api.casinoscores.com/svc-evolution-game-events/api/xxxtremelightningroulette/latest"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
@@ -53,7 +55,7 @@ def get_color(n):
 def get_coluna(n): return (n - 1) % 3 + 1 if n != 0 else 0
 def get_linha(n): return ((n - 1) // 3) + 1 if n != 0 else 0
 
-def extrair_features(numero, freq_norm, janela, idx_num, total_pares, total_impares):
+def extrair_features(numero, freq_norm, janela, idx_num, total_pares, total_impares, media_geral):
     return [
         numero % 2,
         numero % 3,
@@ -64,27 +66,38 @@ def extrair_features(numero, freq_norm, janela, idx_num, total_pares, total_impa
         freq_norm.get(numero, 0),
         (numero - janela[idx_num-1]) if idx_num > 0 else 0,
         total_pares / len(janela),
-        total_impares / len(janela)
+        total_impares / len(janela),
+        numero - media_geral
     ]
 
 def construir_entrada(janela, freq, freq_total):
     freq_norm = {k: v / freq_total for k, v in freq.items()} if freq_total > 0 else {}
     total_pares = sum(1 for n in janela if n != 0 and n % 2 == 0)
     total_impares = sum(1 for n in janela if n != 0 and n % 2 == 1)
+    media_geral = np.mean(janela)
     features = []
     for i, n in enumerate(janela):
-        features.extend(extrair_features(n, freq_norm, janela, i, total_pares, total_impares))
+        features.extend(extrair_features(n, freq_norm, janela, i, total_pares, total_impares, media_geral))
     return features
 
 class ModeloIA:
     def __init__(self):
-        self.modelo = RandomForestClassifier(n_estimators=100, max_depth=15, random_state=42)
+        self.modelo = None
         self.treinado = False
+        self._carregar_modelo()
+
+    def _carregar_modelo(self):
+        if os.path.exists(MODELO_PATH):
+            self.modelo = joblib.load(MODELO_PATH)
+            self.treinado = True
+        else:
+            self.modelo = RandomForestClassifier(n_estimators=200, max_depth=20, random_state=42)
 
     def treinar(self, entradas, saidas):
         X, y = np.array(entradas), np.array(saidas)
         self.modelo.fit(X, y)
         self.treinado = True
+        joblib.dump(self.modelo, MODELO_PATH)
 
     def prever(self, entrada, top_k=8):
         if not self.treinado: return []
@@ -126,6 +139,8 @@ class RoletaIA:
             "linha": max(set(linhas), key=linhas.count) if linhas else 0
         }
 
+# Continuação no próximo bloco
+
 # --- Streamlit App ---
 
 st.set_page_config(page_title="Roleta IA", layout="wide")
@@ -152,13 +167,16 @@ if st.button("Adicionar Sorteios Manuais"):
             st.warning("Você só pode inserir até 100 números.")
         else:
             for numero in nums:
-                st.session_state.historico.append({"number": numero, "color": "-", "timestamp": f"manual_{len(st.session_state.historico)}", "lucky_numbers": []})
+                st.session_state.historico.append({
+                    "number": numero, "color": "-", 
+                    "timestamp": f"manual_{len(st.session_state.historico)}", 
+                    "lucky_numbers": []})
             salvar_resultado_em_arquivo(st.session_state.historico)
             st.success(f"{len(nums)} números adicionados.")
     except:
         st.error("Erro ao interpretar os números.")
 
-st_autorefresh(interval=40000, key="auto_refresh")
+st_autorefresh(interval=30000, key="auto_refresh")
 
 # Captura e verificação
 resultado = fetch_latest_result()
@@ -170,26 +188,21 @@ if resultado and resultado["timestamp"] != ultimo_timestamp:
     salvar_resultado_em_arquivo([novo_resultado])
     st.toast(f"🎲 Novo número: {novo_resultado['number']}")
 
-    st.info("⏳ Aguardando 30s antes da próxima previsão...")
-    for _ in range(30):
-        if novo_resultado["number"] in st.session_state.previsoes:
-            if novo_resultado["number"] not in st.session_state.acertos:
-                st.session_state.acertos.append(novo_resultado["number"])
-                st.toast("✅ Acertou o número!")
-        if get_coluna(novo_resultado["number"]) == st.session_state.get("coluna_prevista", -1):
-            st.session_state.colunas_acertadas += 1
-            st.toast("✅ Acertou a coluna!")
-        if get_linha(novo_resultado["number"]) == st.session_state.get("linha_prevista", -1):
-            st.session_state.linhas_acertadas += 1
-            st.toast("✅ Acertou a linha!")
-        time.sleep(1)
+    if novo_resultado["number"] in st.session_state.previsoes:
+        if novo_resultado["number"] not in st.session_state.acertos:
+            st.session_state.acertos.append(novo_resultado["number"])
+            st.toast("✅ Acertou o número!")
+    if get_coluna(novo_resultado["number"]) == st.session_state.get("coluna_prevista", -1):
+        st.session_state.colunas_acertadas += 1
+        st.toast("✅ Acertou a coluna!")
+    if get_linha(novo_resultado["number"]) == st.session_state.get("linha_prevista", -1):
+        st.session_state.linhas_acertadas += 1
+        st.toast("✅ Acertou a linha!")
 
     previsoes = st.session_state.roleta_ia.prever_numeros(st.session_state.historico)
     st.session_state.previsoes = previsoes.get("numeros", [])
     st.session_state.coluna_prevista = previsoes.get("coluna", 0)
     st.session_state.linha_prevista = previsoes.get("linha", 0)
-else:
-    st.info("⏳ Aguardando novo sorteio...")
 
 # Interface
 st.subheader("🔁 Últimos Sorteios")
@@ -197,7 +210,8 @@ st.write(" ".join(str(h["number"]) for h in st.session_state.historico[-10:]))
 
 st.subheader("🔮 Previsão dos Próximos 8 Números")
 if st.session_state.previsoes:
-    st.success(f"🎯 Números previstos: {' '.join(map(str, st.session_state.previsoes))}")
+    previsao_str = " ".join(f"🎯 {n}" for n in st.session_state.previsoes)
+    st.success(f"Números previstos: {previsao_str}")
     st.info(f"🧱 Coluna: {st.session_state.coluna_prevista} | 📐 Linha: {st.session_state.linha_prevista}")
 else:
     st.warning("Previsão ainda não disponível.")
@@ -206,7 +220,8 @@ st.subheader("🏅 Acertos da IA")
 col1, col2 = st.columns([4, 1])
 with col1:
     if st.session_state.acertos:
-        st.success(f"Acertos: {' '.join(map(str, st.session_state.acertos))}")
+        acertos_str = " ".join(f"✅ {n}" for n in st.session_state.acertos)
+        st.success(f"Acertos: {acertos_str}")
     else:
         st.info("Nenhum acerto ainda.")
 with col2:
@@ -215,6 +230,14 @@ with col2:
         st.session_state.colunas_acertadas = 0
         st.session_state.linhas_acertadas = 0
         st.toast("Acertos resetados.")
+
+if st.button("🔄 Reiniciar Tudo (Modelo + Histórico)"):
+    st.session_state.clear()
+    if os.path.exists(HISTORICO_PATH):
+        os.remove(HISTORICO_PATH)
+    if os.path.exists(MODELO_PATH):
+        os.remove(MODELO_PATH)
+    st.success("Reiniciado com sucesso. Recarregue a página.")
 
 st.subheader("📊 Taxas de Acerto")
 total_prev = len([h for h in st.session_state.historico if h["number"] not in (None, 0)]) - min_sorteios_para_prever
