@@ -104,7 +104,7 @@ class ModeloIA:
         return top_indices
 
 class RoletaIA:
-    def __init__(self, janela_min=18, janela_max=36):
+    def __init__(self, janela_min=5, janela_max=90):
         self.modelo = ModeloIA()
         self.janela_min = janela_min
         self.janela_max = janela_max
