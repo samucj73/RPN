@@ -4,18 +4,18 @@ import os
 import logging
 import requests
 import time
+import threading
 from collections import Counter
 from sklearn.linear_model import SGDClassifier
 import numpy as np
 from streamlit_autorefresh import st_autorefresh
-import re
 
 # --- Configurações ---
 HISTORICO_PATH = "historico_resultados.json"
 API_URL = "https://api.casinoscores.com/svc-evolution-game-events/api/xxxtremelightningroulette/latest"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-# --- Funções de API e Arquivo ---
+# --- Funções da API ---
 def fetch_latest_result():
     try:
         response = requests.get(API_URL, headers=HEADERS, timeout=10)
@@ -25,12 +25,10 @@ def fetch_latest_result():
         result = game_data.get("result", {})
         outcome = result.get("outcome", {})
         lucky_list = result.get("luckyNumbersList", [])
-
         number = outcome.get("number")
         color = outcome.get("color", "-")
         timestamp = game_data.get("startedAt")
         lucky_numbers = [item["number"] for item in lucky_list]
-
         return {
             "number": number,
             "color": color,
@@ -48,6 +46,7 @@ def salvar_resultado_em_arquivo(history, caminho=HISTORICO_PATH):
             try:
                 dados_existentes = json.load(f)
             except json.JSONDecodeError:
+                logging.warning("Arquivo JSON vazio ou corrompido. Recriando arquivo.")
                 dados_existentes = []
     timestamps_existentes = {item['timestamp'] for item in dados_existentes if 'timestamp' in item}
     novos_filtrados = [item for item in history if item.get('timestamp') not in timestamps_existentes]
@@ -56,10 +55,14 @@ def salvar_resultado_em_arquivo(history, caminho=HISTORICO_PATH):
     with open(caminho, "w") as f:
         json.dump(dados_existentes, f, indent=2)
 
-# --- Auxiliares ---
+# --- Funções auxiliares ---
 def get_color(n):
-    if n == 0: return -1
-    return 1 if n in {1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36} else 0
+    if n == 0:
+        return -1
+    return 1 if n in {
+        1, 3, 5, 7, 9, 12, 14, 16, 18,
+        19, 21, 23, 25, 27, 30, 32, 34, 36
+    } else 0
 
 def get_coluna(n):
     return (n - 1) % 3 + 1 if n != 0 else 0
@@ -90,11 +93,17 @@ def construir_entrada(janela, freq, freq_total):
         features.extend(extrair_features(n, freq_norm, janela, i, total_pares, total_impares))
     return features
 
-# --- IA ---
+# --- Modelo de IA ---
 class ModeloIA:
     def __init__(self):
-        self.modelo = SGDClassifier(loss="log_loss", max_iter=1000, tol=1e-3,
-                                    eta0=0.01, learning_rate='optimal', random_state=42)
+        self.modelo = SGDClassifier(
+            loss="log_loss",
+            max_iter=1000,
+            tol=1e-3,
+            eta0=0.01,
+            learning_rate='optimal',
+            random_state=42
+        )
         self.classes_ = np.arange(37)
         self.iniciado = False
 
@@ -115,7 +124,7 @@ class ModeloIA:
         return indices[:top_k].tolist()
 
 class RoletaIA:
-    def __init__(self, janela_min=18, janela_max=36):
+    def __init__(self, janela_min=5, janela_max=90):
         self.modelo = ModeloIA()
         self.janela_min = janela_min
         self.janela_max = janela_max
@@ -149,23 +158,46 @@ class RoletaIA:
             "linha": max(set(linhas), key=linhas.count) if linhas else 0
         }
 
+# --- Loop contínuo para verificação de acertos ---
+def loop_verificacao_acertos(numero_atual, previsoes, coluna_prevista, linha_prevista):
+    while True:
+        if numero_atual in previsoes:
+            if numero_atual not in st.session_state.acertos:
+                st.session_state.acertos.append(numero_atual)
+                st.toast(f"✅ Número {numero_atual} estava na previsão!")
+        if get_coluna(numero_atual) == coluna_prevista:
+            st.toast("✅ Acertou a coluna!")
+        if get_linha(numero_atual) == linha_prevista:
+            st.toast("✅ Acertou a linha!")
+        time.sleep(3)
+
 # --- Interface Streamlit ---
 st.set_page_config(page_title="Roleta IA", layout="wide")
 st.title("🎯 Previsão Inteligente de Roleta")
 
 if "historico" not in st.session_state:
-    st.session_state.historico = json.load(open(HISTORICO_PATH)) if os.path.exists(HISTORICO_PATH) else []
-if "acertos" not in st.session_state: st.session_state.acertos = []
-if "acertos_coluna" not in st.session_state: st.session_state.acertos_coluna = 0
-if "acertos_linha" not in st.session_state: st.session_state.acertos_linha = 0
-if "previsoes" not in st.session_state: st.session_state.previsoes = []
-if "roleta_ia" not in st.session_state: st.session_state.roleta_ia = RoletaIA()
-if "coluna" not in st.session_state: st.session_state.coluna = 0
-if "linha" not in st.session_state: st.session_state.linha = 0
+    if os.path.exists(HISTORICO_PATH):
+        with open(HISTORICO_PATH, "r") as f:
+            try:
+                st.session_state.historico = json.load(f)
+            except:
+                st.session_state.historico = []
+    else:
+        st.session_state.historico = []
 
-# Captura e delay de 30 segundos
+if "acertos" not in st.session_state:
+    st.session_state.acertos = []
+
+if "previsoes" not in st.session_state:
+    st.session_state.previsoes = []
+
+if "roleta_ia" not in st.session_state:
+    st.session_state.roleta_ia = RoletaIA()
+
+st_autorefresh(interval=40000, key="auto_refresh")
 resultado = fetch_latest_result()
 ultimo_ts = st.session_state.historico[-1]["timestamp"] if st.session_state.historico else None
+
 if resultado and resultado["timestamp"] != ultimo_ts:
     novo = {
         "number": resultado["number"],
@@ -177,45 +209,53 @@ if resultado and resultado["timestamp"] != ultimo_ts:
     salvar_resultado_em_arquivo([novo])
     st.toast(f"🎲 Novo número: {novo['number']}")
 
-    st.info("⏳ Verificando acertos por 30 segundos...")
-    start = time.time()
-    while time.time() - start < 30:
-        if novo["number"] in st.session_state.previsoes and novo["number"] not in st.session_state.acertos:
-            st.session_state.acertos.append(novo["number"])
-            st.toast(f"✅ Acertou o número: {novo['number']}")
+    # Inicia verificação contínua enquanto espera 30s
+    threading.Thread(
+        target=loop_verificacao_acertos,
+        args=(
+            resultado["number"],
+            st.session_state.previsoes,
+            st.session_state.coluna_prevista if "coluna_prevista" in st.session_state else 0,
+            st.session_state.linha_prevista if "linha_prevista" in st.session_state else 0
+        ),
+        daemon=True
+    ).start()
 
-        if get_coluna(novo["number"]) == st.session_state.coluna:
-            st.toast("✅ Acertou a coluna!")
-
-        if get_linha(novo["number"]) == st.session_state.linha:
-            st.toast("✅ Acertou a linha!")
-        time.sleep(2)
+    st.warning("⏳ Aguardando 30 segundos para nova previsão...")
+    time.sleep(30)
 
     previsao = st.session_state.roleta_ia.prever_numeros(st.session_state.historico)
     st.session_state.previsoes = previsao["numeros"]
-    st.session_state.coluna = previsao["coluna"]
-    st.session_state.linha = previsao["linha"]
+    st.session_state.coluna_prevista = previsao["coluna"]
+    st.session_state.linha_prevista = previsao["linha"]
 else:
-    st.info("Aguardando novo sorteio...")
+    st.info("⏳ Aguardando novo sorteio...")
 
-# Interface
+# Exibição
 st.subheader("🔢 Últimos Sorteios")
 st.write(" ".join(str(h["number"]) for h in st.session_state.historico[-10:]))
 
 st.subheader("🔮 Previsão dos Próximos 8 Números")
 if st.session_state.previsoes:
     st.success("🎯 " + " ".join(str(n) for n in st.session_state.previsoes))
-    st.info(f"📐 Coluna provável: {st.session_state.coluna} | Linha provável: {st.session_state.linha}")
+    st.info(f"📐 Coluna provável: {st.session_state.coluna_prevista} | Linha provável: {st.session_state.linha_prevista}")
+else:
+    st.warning("Aguardando sorteios suficientes.")
 
 st.subheader("🏅 Acertos")
-st.write(f"Números: {' '.join(str(n) for n in st.session_state.acertos)}")
-st.write(f"✅ Acertos de Coluna: {st.session_state.acertos_coluna}")
-st.write(f"✅ Acertos de Linha: {st.session_state.acertos_linha}")
+col1, col2 = st.columns([4, 1])
+with col1:
+    st.success(" ".join(str(n) for n in st.session_state.acertos) if st.session_state.acertos else "Nenhum acerto.")
+with col2:
+    if st.button("Resetar Acertos"):
+        st.session_state.acertos = []
+        st.toast("Acertos resetados.")
 
-st.subheader("📊 Taxa de Acerto")
-total_prev = len(st.session_state.historico) - 36
+st.subheader("📊 Taxa de Acertos")
+min_sorteios = 18
+total_prev = len([h for h in st.session_state.historico if h["number"] not in (None, 0)]) - min_sorteios
 if total_prev > 0:
     taxa = len(st.session_state.acertos) / total_prev * 100
     st.info(f"🎯 Taxa de acerto: {taxa:.2f}%")
 else:
-    st.warning("Aguardando mais sorteios.")
+    st.warning("Aguardando mais sorteios para calcular.")
