@@ -54,7 +54,7 @@ def get_color(n):
 def get_coluna(n): return (n - 1) % 3 + 1 if n != 0 else 0
 def get_linha(n): return ((n - 1) // 3) + 1 if n != 0 else 0
 
-def extrair_features(numero, freq_norm, janela, idx_num, total_pares, total_impares, media_geral):
+def extrair_features(numero, freq_norm, janela, idx_num, total_pares, total_impares, media, moda, desvio, tendencia, col_mais_freq, repetidos, mud_col, freq_recent, terminal_comum):
     return [
         numero % 2,
         numero % 3,
@@ -66,21 +66,35 @@ def extrair_features(numero, freq_norm, janela, idx_num, total_pares, total_impa
         (numero - janela[idx_num-1]) if idx_num > 0 else 0,
         total_pares / len(janela),
         total_impares / len(janela),
-        numero - media_geral,
-        get_coluna(numero) == 1,
-        get_coluna(numero) == 2,
-        get_coluna(numero) == 3,
-        freq_norm.get(get_coluna(numero), 0),
+        numero - media,
+        numero == moda,
+        desvio,
+        tendencia,
+        get_coluna(numero) == col_mais_freq,
+        repetidos,
+        mud_col,
+        freq_recent.get(numero, 0),
+        int(str(numero)[-1]) == terminal_comum
     ]
 
 def construir_entrada(janela, freq, freq_total):
     freq_norm = {k: v / freq_total for k, v in freq.items()} if freq_total > 0 else {}
     total_pares = sum(1 for n in janela if n != 0 and n % 2 == 0)
     total_impares = sum(1 for n in janela if n != 0 and n % 2 == 1)
-    media_geral = np.mean(janela)
+    media = np.mean(janela)
+    moda = Counter(janela).most_common(1)[0][0]
+    desvio = np.std(janela)
+    tendencia = janela[-1] - janela[0]
+    colunas = [get_coluna(n) for n in janela]
+    col_mais_freq = Counter(colunas).most_common(1)[0][0]
+    freq_recent = Counter(janela[-5:])
+    repetidos = len(set(janela[-10:]).intersection(set(janela[-20:-10]))) / 10 if len(janela) >= 20 else 0
+    mud_col = abs(get_coluna(janela[-1]) - get_coluna(janela[-2])) if len(janela) >= 2 else 0
+    terminal_comum = Counter([int(str(n)[-1]) for n in janela]).most_common(1)[0][0]
+
     features = []
     for i, n in enumerate(janela):
-        features.extend(extrair_features(n, freq_norm, janela, i, total_pares, total_impares, media_geral))
+        features.extend(extrair_features(n, freq_norm, janela, i, total_pares, total_impares, media, moda, desvio, tendencia, col_mais_freq, repetidos, mud_col, freq_recent, terminal_comum))
     return features
 
 class ModeloIA:
@@ -156,6 +170,8 @@ if "acertos" not in st.session_state: st.session_state.acertos = []
 if "colunas_acertadas" not in st.session_state: st.session_state.colunas_acertadas = 0
 if "linhas_acertadas" not in st.session_state: st.session_state.linhas_acertadas = 0
 if "previsoes" not in st.session_state: st.session_state.previsoes = []
+if "coluna_prevista" not in st.session_state: st.session_state.coluna_prevista = 0
+if "linha_prevista" not in st.session_state: st.session_state.linha_prevista = 0
 if "roleta_ia" not in st.session_state: st.session_state.roleta_ia = RoletaIA(janela_min=min_sorteios_para_prever)
 
 # Entrada manual
@@ -186,16 +202,15 @@ if resultado and resultado["timestamp"] != ultimo_timestamp:
     salvar_resultado_em_arquivo([novo_resultado])
     st.toast(f"🎲 Novo número: {novo_resultado['number']}")
 
+    # Verificação instantânea (sem temporizador)
     if novo_resultado["number"] in st.session_state.previsoes:
         if novo_resultado["number"] not in st.session_state.acertos:
             st.session_state.acertos.append(novo_resultado["number"])
             st.toast("✅ Acertou o número!")
-
-    if get_coluna(novo_resultado["number"]) == st.session_state.get("coluna_prevista", -1):
+    if get_coluna(novo_resultado["number"]) == st.session_state.coluna_prevista:
         st.session_state.colunas_acertadas += 1
         st.toast("✅ Acertou a coluna!")
-
-    if get_linha(novo_resultado["number"]) == st.session_state.get("linha_prevista", -1):
+    if get_linha(novo_resultado["number"]) == st.session_state.linha_prevista:
         st.session_state.linhas_acertadas += 1
         st.toast("✅ Acertou a linha!")
 
