@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Gordura Corporal (BF%)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>📊 Calculadora de Gordura Corporal</h1>
+  <h2>(Fórmula da Marinha dos EUA)</h2>
+
+  <div class="container">
+    <label for="sexo">Sexo:</label>
+    <select id="sexo">
+      <option value="M">Homem</option>
+      <option value="F">Mulher</option>
+    </select>
+
+    <label for="altura">Altura (cm):</label>
+    <input type="number" id="altura" placeholder="Ex: 175">
+
+    <label for="pescoco">Pescoço (cm):</label>
+    <input type="number" id="pescoco" placeholder="Ex: 40">
+
+    <label for="cintura">Cintura (cm):</label>
+    <input type="number" id="cintura" placeholder="Ex: 85">
+
+    <label for="quadril">Quadril (cm): <small>(apenas mulheres)</small></label>
+    <input type="number" id="quadril" placeholder="Ex: 95">
+
+    <button onclick="calcularBF()">Calcular BF%</button>
+
+    <div class="resultado" id="resultado"></div>
+
+    <!-- Barra de classificação -->
+    <div class="barra" id="barra">
+      <div class="faixa baixo">↓</div>
+      <div class="faixa atleta">Atleta</div>
+      <div class="faixa fitness">Fitness</div>
+      <div class="faixa normal">Normal</div>
+      <div class="faixa obeso">Obesidade</div>
+    </div>
+    <div class="ponteiro"><span id="seta">⬆️</span></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
