@@ -1,183 +1,226 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8">
   <title>Calculadora de BF Corporal</title>
   <style>
     body {
-      font-family: "Segoe UI", sans-serif;
-      background: linear-gradient(135deg, #1f4037, #99f2c8);
-      height: 100vh;
       margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
-      justify-content: center;
-      align-items: center;
+      height: 100vh;
+      background: #f4f6f9;
     }
-    .container {
-      background: #fff;
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-      width: 420px;
+
+    /* ===== MENU LATERAL ===== */
+    .sidebar {
+      width: 250px;
+      background: #2c3e50;
+      color: #ecf0f1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    .sidebar h2 {
       text-align: center;
+      margin-bottom: 30px;
+      font-size: 22px;
     }
-    h1 {
-      color: #1f4037;
-      margin-bottom: 15px;
-    }
-    select, input, button {
-      margin: 10px 0;
-      padding: 10px;
-      width: 90%;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 15px;
-    }
-    button {
-      cursor: pointer;
-      background: #1f4037;
-      color: white;
-      border: none;
+
+    .menu a {
+      padding: 12px 15px;
+      margin: 5px 0;
+      background: #34495e;
+      color: #ecf0f1;
+      text-decoration: none;
+      border-radius: 6px;
+      display: block;
       transition: 0.3s;
     }
-    button:hover {
-      background: #14532d;
+
+    .menu a:hover, .menu a.active {
+      background: #1abc9c;
     }
-    #resultado {
-      margin-top: 15px;
-      font-weight: bold;
-      color: #333;
+
+    /* ===== ÁREA DE CONTEÚDO ===== */
+    .content {
+      flex: 1;
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
     }
+
     .card {
-      margin-top: 20px;
-      padding: 15px;
-      border: 2px solid #1f4037;
+      background: white;
+      padding: 30px;
       border-radius: 10px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    h3 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin: 12px 0 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      background: #1abc9c;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #16a085;
+    }
+
+    .resultado {
+      margin-top: 20px;
+      text-align: center;
+      padding: 15px;
+      border-radius: 6px;
+      background: #ecf0f1;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Calculadora de BF</h1>
 
-    <label for="metodo">Escolha o método:</label>
-    <select id="metodo" onchange="mostrarCampos()">
-      <option value="">-- Selecione --</option>
-      <option value="usnavy">US Navy</option>
-      <option value="jackson">Jackson & Pollock (3 pontos)</option>
-      <option value="bio">Bioimpedância (estimativa)</option>
-    </select>
-
-    <div id="inputs"></div>
-
-    <button onclick="calcular()">Calcular</button>
-    <div id="resultado"></div>
-    <button onclick="exportarPDF()">Exportar PDF</button>
-
-    <div id="cartao" class="card" style="display:none;"></div>
+  <!-- MENU LATERAL -->
+  <div class="sidebar">
+    <h2>BF Corporal</h2>
+    <div class="menu">
+      <a href="#" onclick="mostrarFormulario('navy')" class="active">📏 Fórmula US Navy</a>
+      <a href="#" onclick="mostrarFormulario('adipometro')">📐 Adipômetro</a>
+      <a href="#" onclick="mostrarFormulario('bio')">⚡ Bioimpedância</a>
+    </div>
   </div>
 
-  <!-- Lib para gerar PDF -->
+  <!-- ÁREA DE CONTEÚDO -->
+  <div class="content">
+    <div class="card" id="formulario">
+      <h3>Escolha um cálculo no menu</h3>
+    </div>
+  </div>
+
+  <!-- PDF LIB -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
-    function mostrarCampos() {
-      let metodo = document.getElementById("metodo").value;
-      let inputsDiv = document.getElementById("inputs");
-      inputsDiv.innerHTML = "";
+    let formAtual = "";
 
-      if (metodo === "usnavy") {
-        inputsDiv.innerHTML = `
-          <input type="number" id="altura" placeholder="Altura (cm)">
-          <input type="number" id="cintura" placeholder="Cintura (cm)">
-          <input type="number" id="pescoco" placeholder="Pescoço (cm)">
-          <input type="number" id="quadril" placeholder="Quadril (cm) (mulheres)">
-          <select id="sexo">
-            <option value="homem">Homem</option>
-            <option value="mulher">Mulher</option>
-          </select>
+    function mostrarFormulario(tipo) {
+      const form = document.getElementById("formulario");
+      document.querySelectorAll(".menu a").forEach(a => a.classList.remove("active"));
+      event.target.classList.add("active");
+      formAtual = tipo;
+
+      if (tipo === "navy") {
+        form.innerHTML = `
+          <h3>Fórmula US Navy</h3>
+          <label>Altura (cm)</label><input id="altura" type="number">
+          <label>Cintura (cm)</label><input id="cintura" type="number">
+          <label>Pescoço (cm)</label><input id="pescoco" type="number">
+          <label>Quadril (cm) (somente mulheres)</label><input id="quadril" type="number">
+          <button onclick="calcularNavy()">Calcular</button>
+          <div class="resultado" id="resultado"></div>
+          <button onclick="exportarPDF()">Exportar PDF</button>
         `;
-      } else if (metodo === "jackson") {
-        inputsDiv.innerHTML = `
-          <input type="number" id="p1" placeholder="Prega 1 (mm)">
-          <input type="number" id="p2" placeholder="Prega 2 (mm)">
-          <input type="number" id="p3" placeholder="Prega 3 (mm)">
-          <input type="number" id="idade" placeholder="Idade">
-          <select id="sexo">
-            <option value="homem">Homem</option>
-            <option value="mulher">Mulher</option>
-          </select>
+      }
+
+      if (tipo === "adipometro") {
+        form.innerHTML = `
+          <h3>Adipômetro (3 pontos)</h3>
+          <label>Prega 1 (mm)</label><input id="p1" type="number">
+          <label>Prega 2 (mm)</label><input id="p2" type="number">
+          <label>Prega 3 (mm)</label><input id="p3" type="number">
+          <button onclick="calcularAdipometro()">Calcular</button>
+          <div class="resultado" id="resultado"></div>
+          <button onclick="exportarPDF()">Exportar PDF</button>
         `;
-      } else if (metodo === "bio") {
-        inputsDiv.innerHTML = `
-          <input type="number" id="peso" placeholder="Peso (kg)">
-          <input type="number" id="bf" placeholder="% BF estimado pela balança">
+      }
+
+      if (tipo === "bio") {
+        form.innerHTML = `
+          <h3>Bioimpedância</h3>
+          <p>Insira o valor informado pelo aparelho:</p>
+          <label>% de Gordura</label><input id="bio" type="number">
+          <button onclick="calcularBio()">Registrar</button>
+          <div class="resultado" id="resultado"></div>
+          <button onclick="exportarPDF()">Exportar PDF</button>
         `;
       }
     }
 
-    function calcular() {
-      let metodo = document.getElementById("metodo").value;
-      let resultado = "";
+    function calcularNavy() {
+      let altura = parseFloat(document.getElementById("altura").value);
+      let cintura = parseFloat(document.getElementById("cintura").value);
+      let pescoco = parseFloat(document.getElementById("pescoco").value);
+      let quadril = parseFloat(document.getElementById("quadril").value);
 
-      if (metodo === "usnavy") {
-        let altura = parseFloat(document.getElementById("altura").value);
-        let cintura = parseFloat(document.getElementById("cintura").value);
-        let pescoco = parseFloat(document.getElementById("pescoco").value);
-        let quadril = parseFloat(document.getElementById("quadril")?.value || 0);
-        let sexo = document.getElementById("sexo").value;
-
-        if (sexo === "homem") {
-          resultado = 86.010 * Math.log10(cintura - pescoco) - 70.041 * Math.log10(altura) + 36.76;
-        } else {
-          resultado = 163.205 * Math.log10(cintura + quadril - pescoco) - 97.684 * Math.log10(altura) - 78.387;
-        }
-      }
-      else if (metodo === "jackson") {
-        let p1 = parseFloat(document.getElementById("p1").value);
-        let p2 = parseFloat(document.getElementById("p2").value);
-        let p3 = parseFloat(document.getElementById("p3").value);
-        let idade = parseInt(document.getElementById("idade").value);
-        let sexo = document.getElementById("sexo").value;
-        let soma = p1 + p2 + p3;
-        let dc, bf;
-
-        if (sexo === "homem") {
-          dc = 1.10938 - 0.0008267 * soma + 0.0000016 * soma * soma - 0.0002574 * idade;
-        } else {
-          dc = 1.0994921 - 0.0009929 * soma + 0.0000023 * soma * soma - 0.0001392 * idade;
-        }
-        resultado = (495 / dc) - 450;
-      }
-      else if (metodo === "bio") {
-        resultado = parseFloat(document.getElementById("bf").value);
+      let bf = 0;
+      if (quadril > 0) { // Mulher
+        bf = 163.205 * Math.log10(cintura + quadril - pescoco) -
+             97.684 * Math.log10(altura) - 78.387;
+      } else { // Homem
+        bf = 86.010 * Math.log10(cintura - pescoco) -
+             70.041 * Math.log10(altura) + 36.76;
       }
 
-      resultado = resultado.toFixed(1);
-      document.getElementById("resultado").innerHTML = "Percentual de Gordura: " + resultado + "%";
+      document.getElementById("resultado").innerText = `Seu BF estimado é: ${bf.toFixed(1)}%`;
+    }
 
-      let cartao = document.getElementById("cartao");
-      cartao.style.display = "block";
-      cartao.innerHTML = `
-        <h3>Cartão de Avaliação</h3>
-        <p><b>Método:</b> ${metodo.toUpperCase()}</p>
-        <p><b>Resultado:</b> ${resultado}% de gordura</p>
-        <p><b>Data:</b> ${new Date().toLocaleDateString()}</p>
-      `;
+    function calcularAdipometro() {
+      let p1 = parseFloat(document.getElementById("p1").value);
+      let p2 = parseFloat(document.getElementById("p2").value);
+      let p3 = parseFloat(document.getElementById("p3").value);
+
+      let soma = p1 + p2 + p3;
+      let densidade = 1.097 - (0.0004 * soma); // fórmula simplificada
+      let bf = (495 / densidade) - 450;
+
+      document.getElementById("resultado").innerText = `Seu BF estimado é: ${bf.toFixed(1)}%`;
+    }
+
+    function calcularBio() {
+      let bio = parseFloat(document.getElementById("bio").value);
+      document.getElementById("resultado").innerText = `Valor informado: ${bio.toFixed(1)}%`;
     }
 
     function exportarPDF() {
-      let { jsPDF } = window.jspdf;
-      let doc = new jsPDF();
-      let cartao = document.getElementById("cartao").innerText;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const resultado = document.getElementById("resultado").innerText;
 
-      doc.setFont("helvetica", "bold");
-      doc.text("Cartão de Avaliação Corporal", 20, 20);
-      doc.setFont("helvetica", "normal");
-      doc.text(cartao, 20, 40);
+      doc.setFontSize(18);
+      doc.text("Cartão de Resultado - BF Corporal", 20, 30);
+      doc.setFontSize(14);
+      doc.text(`Método: ${formAtual.toUpperCase()}`, 20, 50);
+      doc.text(`Resultado: ${resultado}`, 20, 70);
 
-      doc.save("avaliacao_bf.pdf");
+      doc.save("resultado_bf.pdf");
     }
   </script>
+
 </body>
 </html>
