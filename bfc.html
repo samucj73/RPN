@@ -1,226 +1,579 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Calculadora de BF Corporal</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      display: flex;
-      height: 100vh;
-      background: #f4f6f9;
-    }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Calculadora de BF • Menu Lateral + PDF</title>
+<style>
+  :root{
+    --bg:#0f1320; --panel:#151b2e; --muted:#a8b3c7; --text:#eaf0ff;
+    --pri:#5fe1a1; --pri-2:#76a9ff; --acc:#ffd166; --danger:#ff7b7b;
+    --border:rgba(255,255,255,.12); --shadow:0 12px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; display:flex; background:radial-gradient(1200px 800px at -10% -10%, #1e2743 0%, transparent 55%),
+    radial-gradient(1000px 700px at 110% 110%, #2a1f48 0%, transparent 55%), var(--bg);
+    color:var(--text); font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+  }
 
-    /* ===== MENU LATERAL ===== */
-    .sidebar {
-      width: 250px;
-      background: #2c3e50;
-      color: #ecf0f1;
-      display: flex;
-      flex-direction: column;
-      padding: 20px;
-    }
+  /* Sidebar */
+  .sidebar{
+    width:280px; min-width:240px; padding:22px 16px; border-right:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+    backdrop-filter: blur(6px);
+  }
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .logo{
+    width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg,var(--pri),var(--pri-2));
+    display:grid;place-items:center;font-weight:900;color:#0b0f1a;
+  }
+  .brand .title{font-weight:800;letter-spacing:.3px}
+  .nav{display:grid;gap:8px;margin-top:12px}
+  .nav button{
+    width:100%; text-align:left; padding:12px 14px; border-radius:10px; border:1px solid var(--border);
+    background:rgba(255,255,255,.06); color:var(--text); cursor:pointer; font-weight:600;
+    transition:.15s transform,.2s filter;
+  }
+  .nav button:hover{filter:brightness(1.07)}
+  .nav button.active{background:linear-gradient(90deg,var(--pri),var(--pri-2)); color:#0b0f1a; border:none}
 
-    .sidebar h2 {
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 22px;
-    }
+  .credits{position:absolute; left:16px; bottom:14px; color:var(--muted); font-size:12px}
 
-    .menu a {
-      padding: 12px 15px;
-      margin: 5px 0;
-      background: #34495e;
-      color: #ecf0f1;
-      text-decoration: none;
-      border-radius: 6px;
-      display: block;
-      transition: 0.3s;
-    }
+  /* Main area */
+  .main{flex:1; display:flex; justify-content:center; align-items:flex-start; padding:28px}
+  .card{
+    width:100%; max-width:860px; background:var(--panel); border:1px solid var(--border);
+    border-radius:16px; box-shadow:var(--shadow); padding:22px;
+  }
+  .header{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;
+  }
+  .header .left{display:flex;gap:10px;align-items:center}
+  .h1{font-size:20px; font-weight:800}
+  .muted{color:var(--muted); font-size:13px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} .sidebar{width:220px} }
 
-    .menu a:hover, .menu a.active {
-      background: #1abc9c;
-    }
+  .panel{
+    background:rgba(255,255,255,.05); border:1px solid var(--border); border-radius:14px; padding:16px;
+  }
+  .panel h3{margin:0 0 10px 0; font-size:15px}
+  label{font-size:13px; color:var(--muted); margin-bottom:4px; display:block}
+  input, select{
+    width:100%; padding:11px 12px; background:#0e1426; border:1px solid rgba(255,255,255,.14);
+    color:var(--text); border-radius:10px; outline:none; font-size:14px;
+  }
+  input:focus,select:focus{border-color:#7dd3fc; box-shadow:0 0 0 3px rgba(125,211,252,.15)}
 
-    /* ===== ÁREA DE CONTEÚDO ===== */
-    .content {
-      flex: 1;
-      padding: 40px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-    }
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .row-3{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  @media (max-width:640px){ .row,.row-3{grid-template-columns:1fr} }
 
-    .card {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      width: 100%;
-      max-width: 500px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{
+    padding:12px 16px; border-radius:10px; border:1px solid var(--border); cursor:pointer;
+    background:linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.06)); color:var(--text); font-weight:700;
+  }
+  .btn-primary{background:linear-gradient(90deg,var(--pri),var(--pri-2)); color:#081018; border:none}
+  .btn-ghost{background:rgba(255,255,255,.06)}
+  .err{color:var(--danger); font-size:13px}
 
-    h3 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+  .result{
+    display:grid; gap:10px; background:rgba(255,255,255,.06); border:1px dashed var(--border);
+    border-radius:12px; padding:14px;
+  }
+  .big{font-size:32px; font-weight:900}
+  .badge{display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.07); border:1px solid var(--border); font-size:12px}
 
-    label {
-      font-weight: bold;
-      display: block;
-      margin: 12px 0 6px;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-
-    button {
-      margin-top: 20px;
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 6px;
-      background: #1abc9c;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #16a085;
-    }
-
-    .resultado {
-      margin-top: 20px;
-      text-align: center;
-      padding: 15px;
-      border-radius: 6px;
-      background: #ecf0f1;
-    }
-  </style>
+  /* “Cartãozinho” para exibição (mesmas proporções do PDF) */
+  .preview-card{
+    width:428px; height:270px; border-radius:14px; border:1px solid var(--border);
+    background:linear-gradient(135deg,#111a2e 0%, #172241 55%, #1a1b3e 100%);
+    padding:18px; display:grid; grid-template-rows:auto 1fr auto; gap:6px;
+  }
+  .pc-head{display:flex;justify-content:space-between;align-items:center}
+  .pc-logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--pri),var(--acc));display:grid;place-items:center;color:#0b0f1a;font-weight:900}
+  .pc-title{font-weight:800;letter-spacing:.3px}
+  .pc-body{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pc-box{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;padding:10px}
+  .pc-foot{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
+</style>
 </head>
 <body>
 
-  <!-- MENU LATERAL -->
-  <div class="sidebar">
-    <h2>BF Corporal</h2>
-    <div class="menu">
-      <a href="#" onclick="mostrarFormulario('navy')" class="active">📏 Fórmula US Navy</a>
-      <a href="#" onclick="mostrarFormulario('adipometro')">📐 Adipômetro</a>
-      <a href="#" onclick="mostrarFormulario('bio')">⚡ Bioimpedância</a>
+<!-- ===== Sidebar ===== -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">BF</div>
+    <div class="title">Calculadora Corporal</div>
+  </div>
+  <div class="nav">
+    <button class="active" data-target="usnavy" onclick="switchTab(event)">📏 US Navy</button>
+    <button data-target="jp3" onclick="switchTab(event)">📐 Jackson & Pollock (3 pts)</button>
+    <button data-target="bio" onclick="switchTab(event)">⚡ Bioimpedância / IMC</button>
+    <button data-target="sobre" onclick="switchTab(event)">ℹ️ Informações</button>
+  </div>
+  <div class="credits">© Seu Projeto • uso estimativo</div>
+</aside>
+
+<!-- ===== Main ===== -->
+<main class="main">
+  <div class="card">
+
+    <div class="header">
+      <div class="left">
+        <div class="h1">Percentual de Gordura (BF)</div>
+        <div class="badge" id="metodoBadge">US Navy</div>
+      </div>
+      <div class="right muted">
+        <span>Preencha, calcule e exporte o cartão em PDF.</span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Formulários -->
+      <section class="panel" id="form-area">
+        <!-- Cabeçalho comum -->
+        <h3>Dados do Avaliado</h3>
+        <div class="row">
+          <div>
+            <label>Nome</label>
+            <input id="nome" placeholder="ex.: Ana Souza" />
+          </div>
+          <div>
+            <label>Data</label>
+            <input id="data" type="date" />
+          </div>
+        </div>
+
+        <!-- ========== US NAVY ========== -->
+        <div id="tab-usnavy">
+          <div class="row">
+            <div>
+              <label>Sexo</label>
+              <select id="navy-sexo">
+                <option value="male">Masculino</option>
+                <option value="female">Feminino</option>
+              </select>
+            </div>
+            <div>
+              <label>Unidade</label>
+              <select id="navy-unid">
+                <option value="metric">Métrico (cm)</option>
+                <option value="imperial">Imperial (in)</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Altura</label>
+              <input id="navy-altura" type="number" step="0.1" placeholder="cm ou in" />
+            </div>
+            <div>
+              <label>Pescoço</label>
+              <input id="navy-pescoco" type="number" step="0.1" placeholder="cm ou in" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Cintura</label>
+              <input id="navy-cintura" type="number" step="0.1" placeholder="cm ou in" />
+            </div>
+            <div id="navy-quadril-wrap">
+              <label>Quadril (mulheres)</label>
+              <input id="navy-quadril" type="number" step="0.1" placeholder="cm ou in" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== JACKSON & POLLOCK 3 PONTOS ========== -->
+        <div id="tab-jp3" style="display:none">
+          <div class="row">
+            <div>
+              <label>Sexo</label>
+              <select id="jp-sexo">
+                <option value="male">Masculino</option>
+                <option value="female">Feminino</option>
+              </select>
+            </div>
+            <div>
+              <label>Idade (anos)</label>
+              <input id="jp-idade" type="number" min="10" max="99" />
+            </div>
+          </div>
+
+          <!-- Homens: tórax, abdômen, coxa -->
+          <div class="row-3" id="jp-male">
+            <div>
+              <label>Tórax (mm)</label>
+              <input id="jp-chest" type="number" step="0.5" />
+            </div>
+            <div>
+              <label>Abdômen (mm)</label>
+              <input id="jp-abdomen" type="number" step="0.5" />
+            </div>
+            <div>
+              <label>Coxa (mm)</label>
+              <input id="jp-thigh" type="number" step="0.5" />
+            </div>
+          </div>
+
+          <!-- Mulheres: tríceps, supra-ilíaca, coxa -->
+          <div class="row-3" id="jp-female" style="display:none">
+            <div>
+              <label>Tríceps (mm)</label>
+              <input id="jp-triceps" type="number" step="0.5" />
+            </div>
+            <div>
+              <label>Supra-ilíaca (mm)</label>
+              <input id="jp-supra" type="number" step="0.5" />
+            </div>
+            <div>
+              <label>Coxa (mm)</label>
+              <input id="jp-thigh-f" type="number" step="0.5" />
+            </div>
+          </div>
+          <div class="muted" style="margin-top:6px">Usa densidade corporal (Jackson & Pollock) + fórmula de Siri.</div>
+        </div>
+
+        <!-- ========== BIOIMPEDÂNCIA / IMC ========== -->
+        <div id="tab-bio" style="display:none">
+          <div class="row">
+            <div>
+              <label>Sexo</label>
+              <select id="bio-sexo">
+                <option value="male">Masculino</option>
+                <option value="female">Feminino</option>
+              </select>
+            </div>
+            <div>
+              <label>Idade (anos)</label>
+              <input id="bio-idade" type="number" min="10" max="99" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Peso (kg)</label>
+              <input id="bio-peso" type="number" step="0.1" />
+            </div>
+            <div>
+              <label>Altura (cm)</label>
+              <input id="bio-altura" type="number" step="0.1" />
+            </div>
+          </div>
+          <div class="muted">Estimativa baseada em IMC (prática para comparar com a balança de bioimpedância).</div>
+        </div>
+
+        <!-- ========== SOBRE ========== -->
+        <div id="tab-sobre" style="display:none">
+          <p class="muted">
+            • <b>US Navy</b>: circunferências; bom para uso caseiro. <br/>
+            • <b>Jackson & Pollock (3 pts)</b>: pregas cutâneas; requer prática. <br/>
+            • <b>Bio/IMC</b>: estimativa rápida para referência. <br/>
+            Esses métodos são estimativos e não substituem exames clínicos (DEXA, BodPod).
+          </p>
+        </div>
+
+        <div id="form-error" class="err" style="margin-top:6px; display:none">Preencha os campos necessários.</div>
+        <div class="actions" style="margin-top:10px">
+          <button class="btn btn-primary" onclick="calcular()">Calcular</button>
+          <button class="btn btn-ghost" onclick="limpar()">Limpar</button>
+        </div>
+      </section>
+
+      <!-- Resultado -->
+      <section class="panel">
+        <h3>Resultado</h3>
+        <div class="result">
+          <div class="big" id="bf-out">—</div>
+          <div class="badge" id="class-out">—</div>
+          <div class="muted" id="det-out">Escolha o método, preencha e clique em Calcular.</div>
+        </div>
+
+        <h3 style="margin-top:16px">Cartão (pré-visualização)</h3>
+        <div class="preview-card" id="previewCard">
+          <div class="pc-head">
+            <div class="pc-logo">BF</div>
+            <div class="pc-title">Cartão de Avaliação Corporal</div>
+          </div>
+          <div class="pc-body">
+            <div class="pc-box">
+              <div class="muted">Avaliado</div>
+              <div id="pc-nome" style="font-weight:800">—</div>
+              <div class="muted" style="margin-top:6px">Método</div>
+              <div id="pc-metodo">—</div>
+            </div>
+            <div class="pc-box">
+              <div class="muted">% Gordura</div>
+              <div id="pc-bf" style="font-size:28px;font-weight:900">—</div>
+              <div class="muted" style="margin-top:6px">Classificação</div>
+              <div id="pc-class">—</div>
+            </div>
+          </div>
+          <div class="pc-foot">
+            <div id="pc-data">Data: —</div>
+            <div id="pc-nota">Ref.: estimativa</div>
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="exportPDF()">Exportar PDF (cartão 85,6×54 mm)</button>
+        </div>
+      </section>
     </div>
   </div>
+</main>
 
-  <!-- ÁREA DE CONTEÚDO -->
-  <div class="content">
-    <div class="card" id="formulario">
-      <h3>Escolha um cálculo no menu</h3>
-    </div>
-  </div>
+<!-- jsPDF para gerar o PDF do cartão -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  // ========= Utilidades =========
+  const $ = id => document.getElementById(id);
+  const cmToIn = v => v/2.54;
 
-  <!-- PDF LIB -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  // Tabs
+  function switchTab(ev){
+    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+    ev.currentTarget.classList.add('active');
+    const target = ev.currentTarget.dataset.target;
+    // esconder todos
+    ['usnavy','jp3','bio','sobre'].forEach(t=>{
+      const tab = $('tab-'+t);
+      if(tab) tab.style.display = (t===target)?'block':'none';
+    });
+    // label badge
+    const labels = {usnavy:'US Navy', jp3:'Jackson & Pollock (3 pts)', bio:'Bio/IMC', sobre:'Informações'};
+    $('metodoBadge').textContent = labels[target] || '—';
+    // mostrar/ocultar campo quadril (US Navy) conforme sexo
+    toggleQuadril();
+    $('form-error').style.display = 'none';
+  }
 
-  <script>
-    let formAtual = "";
+  function toggleQuadril(){
+    const sexo = $('navy-sexo')?.value || 'male';
+    $('navy-quadril-wrap').style.display = (sexo==='female') ? 'block' : 'none';
+  }
+  $('navy-sexo').addEventListener('change', toggleQuadril);
 
-    function mostrarFormulario(tipo) {
-      const form = document.getElementById("formulario");
-      document.querySelectorAll(".menu a").forEach(a => a.classList.remove("active"));
-      event.target.classList.add("active");
-      formAtual = tipo;
+  // Classificação simples por sexo
+  function classificar(sexo, bf){
+    if(!Number.isFinite(bf)) return '—';
+    if(sexo==='male'){
+      if(bf<6) return 'Abaixo do saudável';
+      if(bf<=13) return 'Atleta';
+      if(bf<=17) return 'Fitness';
+      if(bf<=24) return 'Normal';
+      return 'Sobrepeso';
+    } else {
+      if(bf<14) return 'Abaixo do saudável';
+      if(bf<=20) return 'Atleta';
+      if(bf<=24) return 'Fitness';
+      if(bf<=31) return 'Normal';
+      return 'Sobrepeso';
+    }
+  }
 
-      if (tipo === "navy") {
-        form.innerHTML = `
-          <h3>Fórmula US Navy</h3>
-          <label>Altura (cm)</label><input id="altura" type="number">
-          <label>Cintura (cm)</label><input id="cintura" type="number">
-          <label>Pescoço (cm)</label><input id="pescoco" type="number">
-          <label>Quadril (cm) (somente mulheres)</label><input id="quadril" type="number">
-          <button onclick="calcularNavy()">Calcular</button>
-          <div class="resultado" id="resultado"></div>
-          <button onclick="exportarPDF()">Exportar PDF</button>
-        `;
-      }
+  // ========= Cálculos =========
+  function calcUSNavy(){
+    const sexo = $('navy-sexo').value;
+    const unid = $('navy-unid').value; // metric (cm) ou imperial (in)
+    let h = parseFloat($('navy-altura').value);
+    let ne = parseFloat($('navy-pescoco').value);
+    let wi = parseFloat($('navy-cintura').value);
+    let hi = sexo==='female' ? parseFloat($('navy-quadril').value) : 0;
 
-      if (tipo === "adipometro") {
-        form.innerHTML = `
-          <h3>Adipômetro (3 pontos)</h3>
-          <label>Prega 1 (mm)</label><input id="p1" type="number">
-          <label>Prega 2 (mm)</label><input id="p2" type="number">
-          <label>Prega 3 (mm)</label><input id="p3" type="number">
-          <button onclick="calcularAdipometro()">Calcular</button>
-          <div class="resultado" id="resultado"></div>
-          <button onclick="exportarPDF()">Exportar PDF</button>
-        `;
-      }
+    if([h,ne,wi].some(x => !Number.isFinite(x) || x<=0) || (sexo==='female' && (!Number.isFinite(hi) || hi<=0))){
+      return NaN;
+    }
+    // converter cm -> in se necessário
+    if(unid==='metric'){
+      h = cmToIn(h); ne = cmToIn(ne); wi = cmToIn(wi); if(sexo==='female') hi = cmToIn(hi);
+    }
+    if(sexo==='male'){
+      const A = wi - ne; if(A<=0) return NaN;
+      return 86.010*Math.log10(A) - 70.041*Math.log10(h) + 36.76;
+    }else{
+      const A = wi + hi - ne; if(A<=0) return NaN;
+      return 163.205*Math.log10(A) - 97.684*Math.log10(h) - 78.387;
+    }
+  }
 
-      if (tipo === "bio") {
-        form.innerHTML = `
-          <h3>Bioimpedância</h3>
-          <p>Insira o valor informado pelo aparelho:</p>
-          <label>% de Gordura</label><input id="bio" type="number">
-          <button onclick="calcularBio()">Registrar</button>
-          <div class="resultado" id="resultado"></div>
-          <button onclick="exportarPDF()">Exportar PDF</button>
-        `;
-      }
+  function calcJP3(){
+    const sexo = $('jp-sexo').value;
+    const idade = parseInt($('jp-idade').value);
+    if(!Number.isFinite(idade) || idade<=0) return NaN;
+
+    if(sexo==='male'){
+      const ch = parseFloat($('jp-chest').value);
+      const ab = parseFloat($('jp-abdomen').value);
+      const th = parseFloat($('jp-thigh').value);
+      if([ch,ab,th].some(x => !Number.isFinite(x) || x<0)) return NaN;
+      const S = ch+ab+th;
+      const dens = 1.10938 - 0.0008267*S + 0.0000016*S*S - 0.0002574*idade;
+      return 495/dens - 450;
+    }else{
+      const tr = parseFloat($('jp-triceps').value);
+      const si = parseFloat($('jp-supra').value);
+      const th = parseFloat($('jp-thigh-f').value);
+      if([tr,si,th].some(x => !Number.isFinite(x) || x<0)) return NaN;
+      const S = tr+si+th;
+      const dens = 1.0994921 - 0.0009929*S + 0.0000023*S*S - 0.0001392*idade;
+      return 495/dens - 450;
+    }
+  }
+
+  function calcBioIMC(){
+    const sexo = $('bio-sexo').value;
+    const idade = parseInt($('bio-idade').value);
+    const peso = parseFloat($('bio-peso').value);
+    const altura_cm = parseFloat($('bio-altura').value);
+    if([idade,peso,altura_cm].some(x => !Number.isFinite(x) || x<=0)) return NaN;
+    const h = altura_cm/100;
+    const imc = peso/(h*h);
+    // Equação de Deurenberg (estimativa rápida a partir do IMC)
+    const bf = 1.20*imc + 0.23*idade - 10.8*(sexo==='male'?1:0) - 5.4;
+    return bf;
+  }
+
+  function calcular(){
+    const metodo = document.querySelector('.nav button.active')?.dataset.target || 'usnavy';
+    let bf = NaN, detalhes = '', sexoForClass = 'male';
+
+    if(metodo==='usnavy'){
+      sexoForClass = $('navy-sexo').value;
+      bf = calcUSNavy();
+      detalhes = 'US Navy: circunferências (log10).';
+    }else if(metodo==='jp3'){
+      sexoForClass = $('jp-sexo').value;
+      bf = calcJP3();
+      detalhes = 'JP 3 pontos + Siri.';
+    }else if(metodo==='bio'){
+      sexoForClass = $('bio-sexo').value;
+      bf = calcBioIMC();
+      detalhes = 'Estimativa via IMC (Deurenberg).';
+    }else{
+      $('form-error').style.display='block'; return;
     }
 
-    function calcularNavy() {
-      let altura = parseFloat(document.getElementById("altura").value);
-      let cintura = parseFloat(document.getElementById("cintura").value);
-      let pescoco = parseFloat(document.getElementById("pescoco").value);
-      let quadril = parseFloat(document.getElementById("quadril").value);
-
-      let bf = 0;
-      if (quadril > 0) { // Mulher
-        bf = 163.205 * Math.log10(cintura + quadril - pescoco) -
-             97.684 * Math.log10(altura) - 78.387;
-      } else { // Homem
-        bf = 86.010 * Math.log10(cintura - pescoco) -
-             70.041 * Math.log10(altura) + 36.76;
-      }
-
-      document.getElementById("resultado").innerText = `Seu BF estimado é: ${bf.toFixed(1)}%`;
+    if(!Number.isFinite(bf)){
+      $('form-error').style.display='block';
+      $('bf-out').textContent='—'; $('class-out').textContent='—'; $('det-out').textContent='Verifique os campos.';
+      syncPreview();
+      return;
     }
+    $('form-error').style.display='none';
 
-    function calcularAdipometro() {
-      let p1 = parseFloat(document.getElementById("p1").value);
-      let p2 = parseFloat(document.getElementById("p2").value);
-      let p3 = parseFloat(document.getElementById("p3").value);
+    // Limites razoáveis
+    if(bf<2) bf=2; if(bf>60) bf=60;
 
-      let soma = p1 + p2 + p3;
-      let densidade = 1.097 - (0.0004 * soma); // fórmula simplificada
-      let bf = (495 / densidade) - 450;
+    const classe = classificar(sexoForClass, bf);
+    $('bf-out').textContent = bf.toFixed(1)+'%';
+    $('class-out').textContent = classe;
+    $('det-out').textContent = detalhes;
+    syncPreview(); // atualiza cartão
+  }
 
-      document.getElementById("resultado").innerText = `Seu BF estimado é: ${bf.toFixed(1)}%`;
-    }
+  function limpar(){
+    document.querySelectorAll('input').forEach(i=>i.value='');
+    $('bf-out').textContent='—'; $('class-out').textContent='—';
+    $('det-out').textContent='Escolha o método, preencha e clique em Calcular.';
+    $('form-error').style.display='none';
+    syncPreview();
+  }
 
-    function calcularBio() {
-      let bio = parseFloat(document.getElementById("bio").value);
-      document.getElementById("resultado").innerText = `Valor informado: ${bio.toFixed(1)}%`;
-    }
+  // Alternar campos do JP3 por sexo
+  $('jp-sexo').addEventListener('change', ()=>{
+    const female = $('jp-sexo').value==='female';
+    $('jp-male').style.display = female? 'none':'grid';
+    $('jp-female').style.display = female? 'grid':'none';
+  });
 
-    function exportarPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const resultado = document.getElementById("resultado").innerText;
+  // Pré-preencher data com hoje
+  (function initDate(){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    $('data').value = `${yyyy}-${mm}-${dd}`;
+  })();
 
-      doc.setFontSize(18);
-      doc.text("Cartão de Resultado - BF Corporal", 20, 30);
-      doc.setFontSize(14);
-      doc.text(`Método: ${formAtual.toUpperCase()}`, 20, 50);
-      doc.text(`Resultado: ${resultado}`, 20, 70);
+  // Sincroniza o preview do cartão
+  function syncPreview(){
+    const metodo = document.querySelector('.nav button.active')?.textContent.replace(/^[^A-Za-zÀ-ú]+/,'') || '—';
+    $('pc-nome').textContent = $('nome').value || '—';
+    $('pc-metodo').textContent = metodo;
+    $('pc-data').textContent = 'Data: ' + ($('data').value || '—');
+    $('pc-bf').textContent = $('bf-out').textContent || '—';
+    $('pc-class').textContent = $('class-out').textContent || '—';
+  }
 
-      doc.save("resultado_bf.pdf");
-    }
-  </script>
+  // Exporta PDF no tamanho cartão (85,6 x 54 mm)
+  function exportPDF(){
+    const { jsPDF } = window.jspdf;
+    // formato custom: [altura, largura] em mm -> usaremos paisagem para 85.6x54
+    const doc = new jsPDF({orientation:'landscape', unit:'mm', format:[54, 85.6]});
 
+    // Fundo
+    doc.setFillColor(18, 26, 48); // #121a30
+    doc.roundedRect(0, 0, 85.6, 54, 3, 3, 'F');
+
+    // Header “logo”
+    doc.setFillColor(95, 225, 161); // var(--pri)
+    doc.roundedRect(4, 4, 12, 12, 2, 2, 'F');
+    doc.setTextColor(11,16,26);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text('BF', 7.9, 12);
+
+    // Título
+    doc.setTextColor(234,240,255);
+    doc.setFontSize(11);
+    doc.text('Cartão de Avaliação Corporal', 20, 11);
+
+    // Linha
+    doc.setDrawColor(120,140,180);
+    doc.line(4, 16, 81.6, 16);
+
+    // Bloco esquerdo (Nome + Método)
+    const nome = $('nome').value || '—';
+    const metodo = $('metodoBadge').textContent || '—';
+    doc.setFontSize(8); doc.setTextColor(168,179,199);
+    doc.text('Avaliado', 6, 23);
+    doc.setTextColor(234,240,255); doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.text(nome, 6, 28);
+
+    doc.setTextColor(168,179,199); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text('Método', 6, 36);
+    doc.setTextColor(234,240,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(metodo, 6, 41);
+
+    // Bloco direito (% e Classificação)
+    const bfTxt = ($('bf-out').textContent || '—').replace('%','');
+    const classe = $('class-out').textContent || '—';
+    doc.setTextColor(168,179,199); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text('% Gordura', 56, 23);
+    doc.setTextColor(234,240,255); doc.setFont('helvetica','bold'); doc.setFontSize(20);
+    doc.text(isNaN(parseFloat(bfTxt)) ? '—' : (parseFloat(bfTxt).toFixed(1)+'%'), 56, 31);
+
+    doc.setTextColor(168,179,199); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text('Classificação', 56, 38);
+    doc.setTextColor(234,240,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    // Quebra se longo
+    const classeLines = doc.splitTextToSize(classe, 25);
+    doc.text(classeLines, 56, 43);
+
+    // Rodapé
+    const data = $('data').value ? $('data').value.split('-').reverse().join('/') : '—';
+    doc.setTextColor(168,179,199); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text('Data: '+data, 6, 51);
+    doc.text('Ref.: estimativa • não substitui exames clínicos', 39, 51, {align:'right'});
+
+    doc.save('cartao-bf.pdf');
+  }
+
+  // Atualiza preview quando dados mudam
+  ['nome','data'].forEach(id=>$(id).addEventListener('input', syncPreview));
+</script>
 </body>
 </html>
