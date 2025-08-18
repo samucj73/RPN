@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calculadora de BF (Percentual de Gordura)</title>
+<style>
+  :root{
+    --bg: #0b0f1a;
+    --card: rgba(255,255,255,0.08);
+    --card-border: rgba(255,255,255,0.18);
+    --text: #e8ecf1;
+    --muted: #a9b2be;
+    --accent: #6ee7ff;
+    --accent-2: #a78bfa;
+    --error: #ff8585;
+    --ok: #9cffc7;
+    --focus: #7dd3fc;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: radial-gradient(1200px 800px at 80% -10%, #1b2640 0%, transparent 60%),
+                radial-gradient(1000px 800px at -10% 120%, #2a1b40 0%, transparent 60%),
+                var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  }
+  .wrap {
+    min-height: 100%;
+    display: grid;
+    place-items: center;
+    padding: 32px 16px;
+  }
+  .card {
+    width: 100%;
+    max-width: 980px;
+    background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.06));
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(8px);
+    padding: 26px;
+  }
+  .header {
+    display: grid;
+    gap: 8px;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .title {
+    font-size: clamp(22px, 2.6vw, 32px);
+    font-weight: 800;
+    letter-spacing: .2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap: 18px;
+  }
+  @media (max-width: 880px){
+    .grid { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .panel h3{
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    letter-spacing:.3px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .row-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .field {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  label { font-size: 13px; color: var(--muted); }
+  input, select {
+    width: 100%;
+    padding: 12px 12px;
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 10px;
+    color: var(--text);
+    outline: none;
+    font-size: 14px;
+  }
+  input:focus, select:focus {
+    border-color: var(--focus);
+    box-shadow: 0 0 0 3px rgba(125, 211, 252, .15);
+  }
+  .tip {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+    cursor: pointer;
+    background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.06));
+    color: var(--text);
+    font-weight: 600;
+    transition: transform .06s ease, filter .2s ease;
+  }
+  .btn:hover { filter: brightness(1.05); }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    color: #0a0c12;
+    border: none;
+  }
+  .result {
+    display:grid;
+    gap:10px;
+    background: rgba(255,255,255,.06);
+    border: 1px dashed rgba(255,255,255,.18);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .result .big {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 900;
+    letter-spacing: .3px;
+  }
+  .badge {
+    display:inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid var(--card-border);
+    background: rgba(255,255,255,.08);
+  }
+  .ok { color: var(--ok); }
+  .err { color: var(--error); }
+  .hidden { display:none !important; }
+  .foot {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+  }
+  .divider {
+    height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+    margin: 10px 0 16px 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="header">
+      <div class="title">Calculadora de BF — Percentual de Gordura</div>
+      <div class="subtitle">Escolha o método (US Navy ou Adipômetro Jackson &amp; Pollock 3 pontos), informe as medidas e veja seu BF estimado.</div>
+    </div>
+
+    <div class="grid">
+      <!-- Painel: Entradas -->
+      <div class="panel">
+        <h3>Configurações & Método</h3>
+        <div class="row">
+          <div class="field">
+            <label for="sexo">Sexo</label>
+            <select id="sexo">
+              <option value="male">Masculino</option>
+              <option value="female">Feminino</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="metodo">Método</label>
+            <select id="metodo">
+              <option value="usnavy">US Navy (fitas métricas)</option>
+              <option value="jp3">Adipômetro — Jackson &amp; Pollock (3 pontos)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="unidades">Unidades (circunferências/altura)</label>
+            <select id="unidades">
+              <option value="metric">Métrico (cm)</option>
+              <option value="imperial">Imperial (in)</option>
+            </select>
+            <div class="tip">Para US Navy, o cálculo usa polegadas; se escolher cm, converteremos automaticamente.</div>
+          </div>
+          <div class="field">
+            <label for="idade">Idade</label>
+            <input id="idade" type="number" min="10" max="99" placeholder="ex.: 28"/>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Campos US Navy -->
+        <div id="usnavy-fields">
+          <h3>Medidas — US Navy</h3>
+          <div class="row">
+            <div class="field">
+              <label for="altura">Altura <span class="badge">cm ou in</span></label>
+              <input id="altura" type="number" step="0.1" placeholder="ex.: 175.0" />
+            </div>
+            <div class="field">
+              <label for="pescoco">Pescoço <span class="badge">cm ou in</span></label>
+              <input id="pescoco" type="number" step="0.1" placeholder="ex.: 39.0" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="cintura">Cintura (ponto mais estreito / umbigo) <span class="badge">cm ou in</span></label>
+              <input id="cintura" type="number" step="0.1" placeholder="ex.: 82.0" />
+            </div>
+            <div class="field" id="campo-quadril">
+              <label for="quadril">Quadril <span class="badge">somente mulheres</span></label>
+              <input id="quadril" type="number" step="0.1" placeholder="ex.: 96.0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Campos Jackson & Pollock 3 pontos -->
+        <div id="jp3-fields" class="hidden">
+          <h3>Medidas — Adipômetro (3 pontos)</h3>
+          <div class="tip">Medidas em <b>milímetros (mm)</b>. Soma das 3 pregas (S) é usada na equação de densidade e depois na fórmula de Siri.</div>
+          <div id="jp3-male" class="">
+            <div class="tip badge">Homens: tórax (peito), abdômen e coxa</div>
+            <div class="row-3">
+              <div class="field">
+                <label for="chest">Tórax (mm)</label>
+                <input id="chest" type="number" step="0.5" placeholder="ex.: 10" />
+              </div>
+              <div class="field">
+                <label for="abdomen">Abdômen (mm)</label>
+                <input id="abdomen" type="number" step="0.5" placeholder="ex.: 15" />
+              </div>
+              <div class="field">
+                <label for="thigh">Coxa (mm)</label>
+                <input id="thigh" type="number" step="0.5" placeholder="ex.: 14" />
+              </div>
+            </div>
+          </div>
+          <div id="jp3-female" class="hidden">
+            <div class="tip badge">Mulheres: tríceps, supra-ilíaca e coxa</div>
+            <div class="row-3">
+              <div class="field">
+                <label for="triceps">Tríceps (mm)</label>
+                <input id="triceps" type="number" step="0.5" placeholder="ex.: 16" />
+              </div>
+              <div class="field">
+                <label for="suprailiac">Supra-ilíaca (mm)</label>
+                <input id="suprailiac" type="number" step="0.5" placeholder="ex.: 18" />
+              </div>
+              <div class="field">
+                <label for="thigh_f">Coxa (mm)</label>
+                <input id="thigh_f" type="number" step="0.5" placeholder="ex.: 20" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="controls">
+          <button class="btn btn-primary" id="calc">Calcular BF</button>
+          <button class="btn" id="limpar">Limpar</button>
+        </div>
+        <div id="erro" class="tip err hidden">Preencha todos os campos exigidos para o método selecionado.</div>
+      </div>
+
+      <!-- Painel: Resultado & Referências -->
+      <div class="panel">
+        <h3>Resultado</h3>
+        <div id="resultado" class="result">
+          <div class="big" id="bf">—</div>
+          <div id="classificacao" class="badge">—</div>
+          <div id="detalhes" class="tip">Escolha o método e informe as medidas para ver seu percentual de gordura estimado.</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3>Faixas de referência</h3>
+        <div class="tip" id="faixas">
+          <ul>
+            <li><b>Homens</b> — Atleta: 6–13% • Fitness: 14–17% • Normal: 18–24% • Sobrepeso: 25%+</li>
+            <li><b>Mulheres</b> — Atleta: 14–20% • Fitness: 21–24% • Normal: 25–31% • Sobrepeso: 32%+</li>
+          </ul>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3>Dicas rápidas</h3>
+        <div class="tip">
+          • Para o método US Navy, meça <i>ao acordar</i>, em repouso, fita nivelada ao chão, sem compressão da pele. <br/>
+          • Para o Adipômetro (JP 3 pontos), a consistência das medições melhora MUITO com prática; sempre no mesmo lado do corpo (geralmente direito). <br/>
+          • Fórmula de conversão usada na US Navy: se informar cm, convertemos para polegadas antes do cálculo. <br/>
+          • Fórmula de Siri: <code>%G = 495 / densidade - 450</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">© Seu Projeto • Este cálculo é estimativo e não substitui avaliação clínica (DEXA, BodPod, etc.).</div>
+  </div>
+</div>
+
+<script>
+  // Utilidades
+  const byId = (id) => document.getElementById(id);
+  const toFloat = (el) => {
+    const v = parseFloat(el.value.replace(',', '.'));
+    return Number.isFinite(v) ? v : NaN;
+  };
+
+  // Elementos
+  const sexoEl = byId('sexo');
+  const metodoEl = byId('metodo');
+  const unidadesEl = byId('unidades');
+  const idadeEl = byId('idade');
+
+  const usnavyFields = byId('usnavy-fields');
+  const jp3Fields = byId('jp3-fields');
+
+  const campoQuadril = byId('campo-quadril');
+  const jp3Male = byId('jp3-male');
+  const jp3Female = byId('jp3-female');
+
+  const alturaEl = byId('altura');
+  const pescocoEl = byId('pescoco');
+  const cinturaEl = byId('cintura');
+  const quadrilEl = byId('quadril');
+
+  const chestEl = byId('chest');
+  const abdomenEl = byId('abdomen');
+  const thighEl = byId('thigh');
+
+  const tricepsEl = byId('triceps');
+  const suprailiacEl = byId('suprailiac');
+  const thighFEl = byId('thigh_f');
+
+  const calcBtn = byId('calc');
+  const limparBtn = byId('limpar');
+  const erroEl = byId('erro');
+
+  const bfOut = byId('bf');
+  const classOut = byId('classificacao');
+  const detOut = byId('detalhes');
+
+  // Alterna campos conforme método/sexo
+  function refreshUI(){
+    const metodo = metodoEl.value;
+    const sexo = sexoEl.value;
+
+    // Método
+    if(metodo === 'usnavy'){
+      usnavyFields.classList.remove('hidden');
+      jp3Fields.classList.add('hidden');
+    } else {
+      usnavyFields.classList.add('hidden');
+      jp3Fields.classList.remove('hidden');
+    }
+
+    // Sexo impacta: US Navy (quadril só mulheres) e JP3 (pontos diferentes)
+    if(sexo === 'female'){
+      campoQuadril.classList.remove('hidden');
+      jp3Male.classList.add('hidden');
+      jp3Female.classList.remove('hidden');
+    } else {
+      campoQuadril.classList.add('hidden');
+      jp3Male.classList.remove('hidden');
+      jp3Female.classList.add('hidden');
+    }
+    erroEl.classList.add('hidden');
+  }
+
+  sexoEl.addEventListener('change', refreshUI);
+  metodoEl.addEventListener('change', refreshUI);
+  window.addEventListener('load', refreshUI);
+
+  // Conversões
+  const CM_PER_IN = 2.54;
+  function cmToIn(v){ return v / CM_PER_IN; }
+
+  // Classificação simples por sexo
+  function classificarBF(sexo, bf){
+    if(!Number.isFinite(bf)) return '—';
+    if(sexo === 'male'){
+      if(bf < 6) return 'Abaixo do saudável';
+      if(bf <= 13) return 'Atleta';
+      if(bf <= 17) return 'Fitness';
+      if(bf <= 24) return 'Normal';
+      return 'Sobrepeso';
+    } else {
+      if(bf < 14) return 'Abaixo do saudável';
+      if(bf <= 20) return 'Atleta';
+      if(bf <= 24) return 'Fitness';
+      if(bf <= 31) return 'Normal';
+      return 'Sobrepeso';
+    }
+  }
+
+  // ======= Fórmulas =======
+
+  // US Navy (entradas em polegadas!)
+  function bfUSNavy({sexo, altura, pescoco, cintura, quadril}){
+    // entradas em inches
+    if(sexo === 'male'){
+      // BF% = 86.010 * log10(cintura - pescoço) - 70.041 * log10(altura) + 36.76
+      const A = cintura - pescoco;
+      if(A <= 0) return NaN;
+      return 86.010 * Math.log10(A) - 70.041 * Math.log10(altura) + 36.76;
+    } else {
+      // BF% = 163.205 * log10(cintura + quadril - pescoço) - 97.684 * log10(altura) - 78.387
+      const A = cintura + quadril - pescoco;
+      if(A <= 0) return NaN;
+      return 163.205 * Math.log10(A) - 97.684 * Math.log10(altura) - 78.387;
+    }
+  }
+
+  // Jackson & Pollock 3 pontos -> Densidade corporal
+  // Homens: chest + abdomen + thigh
+  // Densidade = 1.10938 - 0.0008267*S + 0.0000016*S^2 - 0.0002574*idade
+  function densidadeJP3Male(S, idade){
+    return 1.10938 - 0.0008267*S + 0.0000016*(S*S) - 0.0002574*idade;
+  }
+  // Mulheres: triceps + suprailiac + thigh
+  // Densidade = 1.0994921 - 0.0009929*S + 0.0000023*S^2 - 0.0001392*idade
+  function densidadeJP3Female(S, idade){
+    return 1.0994921 - 0.0009929*S + 0.0000023*(S*S) - 0.0001392*idade;
+  }
+  // Siri: %G = 495 / densidade - 450
+  function siriFromDensity(d){
+    return 495 / d - 450;
+  }
+
+  // Validação mínima
+  function camposOKUSNavy(sexo){
+    const a = toFloat(alturaEl);
+    const p = toFloat(pescocoEl);
+    const c = toFloat(cinturaEl);
+    if(sexo === 'female'){
+      const q = toFloat(quadrilEl);
+      return Number.isFinite(a) && Number.isFinite(p) && Number.isFinite(c) && Number.isFinite(q) && a>0 && p>0 && c>0 && q>0;
+    }
+    return Number.isFinite(a) && Number.isFinite(p) && Number.isFinite(c) && a>0 && p>0 && c>0;
+  }
+  function camposOKJP3(sexo){
+    const idade = toFloat(idadeEl);
+    if(sexo === 'male'){
+      const ch = toFloat(chestEl);
+      const ab = toFloat(abdomenEl);
+      const th = toFloat(thighEl);
+      return Number.isFinite(idade) && Number.isFinite(ch) && Number.isFinite(ab) && Number.isFinite(th) && idade>0 && ch>=0 && ab>=0 && th>=0;
+    } else {
+      const tr = toFloat(tricepsEl);
+      const si = toFloat(suprailiacEl);
+      const th = toFloat(thighFEl);
+      return Number.isFinite(idade) && Number.isFinite(tr) && Number.isFinite(si) && Number.isFinite(th) && idade>0 && tr>=0 && si>=0 && th>=0;
+    }
+  }
+
+  // Cálculo principal
+  function calcular(){
+    const sexo = sexoEl.value;
+    const metodo = metodoEl.value;
+    const unidades = unidadesEl.value;
+
+    let bf = NaN;
+    let detalhes = '';
+
+    if(metodo === 'usnavy'){
+      if(!camposOKUSNavy(sexo)){
+        erroEl.classList.remove('hidden');
+        return;
+      }
+      let altura = toFloat(alturaEl);
+      let pescoco = toFloat(pescocoEl);
+      let cintura = toFloat(cinturaEl);
+      let quadril = sexo === 'female' ? toFloat(quadrilEl) : 0;
+
+      // Converter para inches caso usuário use cm
+      if(unidades === 'metric'){
+        altura = cmToIn(altura);
+        pescoco = cmToIn(pescoco);
+        cintura = cmToIn(cintura);
+        if(sexo === 'female') quadril = cmToIn(quadril);
+      }
+      bf = bfUSNavy({sexo, altura, pescoco, cintura, quadril});
+      detalhes = 'Método US Navy — entradas em polegadas; se informou cm, convertemos automaticamente.';
+
+    } else if(metodo === 'jp3'){
+      if(!camposOKJP3(sexo)){
+        erroEl.classList.remove('hidden');
+        return;
+      }
+      const idade = toFloat(idadeEl);
+      if(sexo === 'male'){
+        const S = toFloat(chestEl) + toFloat(abdomenEl) + toFloat(thighEl); // mm
+        const dens = densidadeJP3Male(S, idade);
+        bf = siriFromDensity(dens);
+        detalhes = `JP 3 pontos (Homens). Soma das pregas S=${S.toFixed(1)} mm. Densidade=${dens.toFixed(4)} g/mL.`;
+      } else {
+        const S = toFloat(tricepsEl) + toFloat(suprailiacEl) + toFloat(thighFEl); // mm
+        const dens = densidadeJP3Female(S, idade);
+        bf = siriFromDensity(dens);
+        detalhes = `JP 3 pontos (Mulheres). Soma das pregas S=${S.toFixed(1)} mm. Densidade=${dens.toFixed(4)} g/mL.`;
+      }
+    }
+
+    erroEl.classList.add('hidden');
+
+    if(!Number.isFinite(bf)){
+      bfOut.textContent = '—';
+      classOut.textContent = 'Não foi possível calcular';
+      classOut.classList.remove('ok');
+      detOut.textContent = 'Verifique as medidas informadas (diferenças negativas ou zero invalidam o logaritmo).';
+      return;
+    }
+
+    // Limites razoáveis
+    if(bf < 2) bf = 2;
+    if(bf > 60) bf = 60;
+
+    const classe = classificarBF(sexo, bf);
+
+    bfOut.textContent = `${bf.toFixed(1)}%`;
+    classOut.textContent = classe;
+    classOut.classList.toggle('ok', /Atleta|Fitness|Normal/.test(classe));
+    classOut.classList.toggle('err', /Abaixo|Sobrepeso/.test(classe));
+    detOut.textContent = detalhes;
+  }
+
+  calcBtn.addEventListener('click', calcular);
+
+  limparBtn.addEventListener('click', () => {
+    document.querySelectorAll('input').forEach(i => i.value = '');
+    byId('bf').textContent = '—';
+    byId('classificacao').textContent = '—';
+    byId('detalhes').textContent = 'Escolha o método e informe as medidas para ver seu percentual de gordura estimado.';
+    erroEl.classList.add('hidden');
+  });
+</script>
+</body>
+</html>
